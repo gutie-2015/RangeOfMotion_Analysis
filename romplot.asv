@@ -1,12 +1,12 @@
 % Luke Buschmann
 % Virtual Rehabilitation User Study Range of Motion Measurements
-readalldata = 0; % set this to 1 to bypass rowstart and rowend for csvread
-side = 0; % 0 for left, 1 for right
-user = 3; % user number (1 through 5)
-session = 0; % 0 for initial/start session, 1 for end session
-romnum = 1; % range of motion measurement # (1 through 4)
-pausetime = 0.03;  % pause time for each plot iteration. Decrease to speedup
-showplot = 1;
+readalldata = 0; % {0,1} set this to 1 to bypass rowstart and rowend for csvread
+side = 0; % {0,1} 0 for left, 1 for right
+user = 3; % {1,2,3,4,5} user number (1 through 5)
+session = 0; % {0,1} 0 for initial/start session, 1 for end session
+romnum = 2; % {1,2,3,4} range of motion measurement # (1 through 4)
+showplot = 1; % {0,1}  0 disables plot and just shows statistics
+pausetime = 0.02; % pause time for each plot iteration. Decrease to speedup
 
 test = (romnum-1)*8+1 + side*4 + session*2;
 rowstart = csvinfo(user , (romnum-1)*8+1 + side*4 + session*2);
@@ -27,6 +27,131 @@ else
     data = csvread(filename,rowstart,1, [ rowstart,1, rowend, 33]);
 end
 %data(:,31)
+
+% Read joint data from csv
+xHead = data(:,1);
+yHead = data(:,2);
+zHead = data(:,3);
+
+xNeck = data(:,4);
+yNeck = data(:,5);
+zNeck = data(:,6);
+
+if side == 1 %strcmp('right',side)
+    xShoulder = data(:,19);
+    yShoulder = data(:,20);  % right shoulder
+    zShoulder = data(:, 21);
+  
+    xElbow = data(:,22);
+    yElbow = data(:,23);  % right elbow
+    zElbow = data(:,24);
+else
+    xShoulder = data(:,7);
+    yShoulder = data(:,8);  % left shoulder
+    zShoulder = data(:,9);
+    
+    xElbow = data(:,10);
+    yElbow = data(:,11);  % left elbow
+    zElbow = data(:,12);
+end
+
+
+%// Plot point by point
+close all
+figure,hold on
+
+maxangle = -180;  % record maximum range of motion angle
+%minangle = 180;
+for k = 1:numel(zNeck)  %(rowend - rowstart)
+    switch romnum
+        case 1
+            angle = atan2(yElbow(k) - yShoulder(k), zElbow(k) - zShoulder(k)); %atan2(y2-y1,x2-x1)
+            angle = radtodeg(angle);
+            if (angle > maxangle)
+                maxangle = angle;
+            end
+            %{
+    if (angle > maxangle && yElbow(k) > yShoulder(k))
+        maxangle = angle;
+    else
+        if (angle < minangle && yElbow(k) < yShoulder(k))
+            minangle = angle;
+        end
+    end
+            %}
+            
+            if (showplot == 1)
+                clf;hold on;
+                plot([zHead(k) zNeck(k)], [yHead(k) yNeck(k)])
+                plot([zNeck(k) zShoulder(k)], [ yNeck(k) yShoulder(k)])
+                plot([zShoulder(k) zElbow(k)], [ yShoulder(k) yElbow(k)])
+                plot(zNeck(k),yNeck(k),'b+')
+                plot(zShoulder(k),yShoulder(k),'go')
+                plot(zElbow(k),yElbow(k),'r*')
+                str1 =  strcat('\leftarrow    ', num2str(angle));
+                %  text(zNeck(k)+100, yNeck(k)+60,num2str(k));
+                text(zShoulder(k)+30, yShoulder(k)+30, str1);
+                title(strcat('row= ',num2str(k+rowstart)));
+                if side == 1 %strcmp('right',side)
+                    text(zShoulder(k), yShoulder(k), 'RightShoulder');
+                    text(zElbow(k), yElbow(k), 'RightElbow');
+                else
+                    text(zShoulder(k), yShoulder(k), 'LeftShoulder');
+                    text(zElbow(k), yElbow(k), 'LeftElbow');
+                end
+                text(zHead(k), yHead(k), 'Head');
+                text(zNeck(k), yNeck(k), 'Neck');
+                pause(pausetime);
+                
+            end
+            
+        case 2
+            angle = atan2(yElbow(k) - yShoulder(k), xElbow(k) - xShoulder(k)); %atan2(y2-y1,x2-x1)
+            angle = radtodeg(angle);
+            if (angle > maxangle && )
+                maxangle = angle;
+            end
+            
+            if (showplot == 1)
+                clf;hold on;
+                plot([xHead(k) xNeck(k)], [yHead(k) yNeck(k)])
+                plot([xNeck(k) xShoulder(k)], [ yNeck(k) yShoulder(k)])
+                plot([xShoulder(k) xElbow(k)], [ yShoulder(k) yElbow(k)])
+                plot(xNeck(k),yNeck(k),'b+')
+                plot(xShoulder(k),yShoulder(k),'go')
+                plot(xElbow(k),yElbow(k),'r*')
+                str1 =  strcat('\leftarrow    ', num2str(angle));
+                %  text(zNeck(k)+100, yNeck(k)+60,num2str(k));
+                text(xShoulder(k)+30, yShoulder(k)+30, str1);
+                title(strcat('row= ',num2str(k+rowstart)));
+                if side == 1 %strcmp('right',side)
+                    text(xShoulder(k), yShoulder(k), 'RightShoulder');
+                    text(xElbow(k), yElbow(k), 'RightElbow');
+                else
+                    text(xShoulder(k), yShoulder(k), 'LeftShoulder');
+                    text(xElbow(k), yElbow(k), 'LeftElbow');
+                end
+                text(xHead(k), yHead(k), 'Head');
+                text(xNeck(k), yNeck(k), 'Neck');
+                pause(pausetime);
+                
+            end
+            
+        case 3
+            
+            
+        case 4
+            
+            
+        otherwise
+            error('ROM number invalid. Use 1 through 4');
+    end
+end
+%if (maxangle == 0) minangle
+%else maxangle
+%end
+maxangle
+
 
 
 
@@ -132,93 +257,8 @@ end
 %data = csvread('User4-ROMend.csv',120,1, [120,1, 200, 32]);  % 1 left
 
 
-zHead = data(:,3);
-yHead = data(:,2);
 
-zNeck = data(:,6);
-yNeck = data(:,5);
-if side == 1 %strcmp('right',side)
-    zShoulder = data(:, 21);
-    yShoulder = data(:,20);  % right shoulder
-    
-    zElbow = data(:,24);
-    yElbow = data(:,23);  % right elbow
-else
-    zShoulder = data(:, 9);
-    yShoulder = data(:,8);  % left shoulder
-    
-    zElbow = data(:,12);
-    yElbow = data(:,11);  % left elbow
-    
-end
-close all
-%// Plot starts here
-figure,hold on
 
-%// Set x and y limits of the plot
-%xlim([min(x(:)) max(x(:))])
-%xlim([min(x(:)) max(x(:))])
-%ylim([min(y(:)) max(y(:))])
-
-%// Plot point by point
-
-maxangle = -;
-minangle = 180;
-for k = 1:numel(zNeck)  %(rowend - rowstart)
-    
-    angle = atan2(yElbow(k) - yShoulder(k), zElbow(k) - zShoulder(k)); %atan2(y2-y1,x2-x1)
-    angle = radtodeg(angle);
-     if (angle > maxangle) 
-         maxangle = angle;
-     end
-     %{
-    if (angle > maxangle && yElbow(k) > yShoulder(k))
-        maxangle = angle;
-    else
-        if (angle < minangle && yElbow(k) < yShoulder(k))
-            minangle = angle;
-        end
-    end
-     %}
-    
-    if (showplot == 1)
-        clf;hold on;
-        plot([zHead(k) zNeck(k)], [yHead(k) yNeck(k)])
-        plot([zNeck(k) zShoulder(k)], [ yNeck(k) yShoulder(k)])
-        plot([zShoulder(k) zElbow(k)], [ yShoulder(k) yElbow(k)])
-        plot(zNeck(k),yNeck(k),'b+')
-        plot(zShoulder(k),yShoulder(k),'go')
-        plot(zElbow(k),yElbow(k),'r*')
-        str1 =  strcat('\leftarrow    ', num2str(angle));
-        %  text(zNeck(k)+100, yNeck(k)+60,num2str(k));
-        text(zShoulder(k)+30, yShoulder(k)+30, str1);
-        title(strcat('row= ',num2str(k+rowstart)));
-        if side == 1 %strcmp('right',side)
-            text(zShoulder(k), yShoulder(k), 'RightShoulder');
-            text(zElbow(k), yElbow(k), 'RightElbow');
-        else
-            text(zShoulder(k), yShoulder(k), 'LeftShoulder');
-            text(zElbow(k), yElbow(k), 'LeftElbow');
-        end
-        text(zHead(k), yHead(k), 'Head');
-        text(zNeck(k), yNeck(k), 'Neck');
-        pause(pausetime);
-        
-    end
-    
-    % angle = atan2(abs(det([v1,v2])),dot(v1,v2));
-    % str1 = '\leftarrow sin(\pi) = 0';
-    %text(x1,y1,str1)
-    %// MATLAB pauses for 0.001 sec before moving on to execue the next
-    %%// instruction and thus creating animation effect
-    %pause(0.1);
-    
-    %   pause (0.7);
-    
-end
-if (maxangle == 0) minangle
-else maxangle
-end
 
 %/
 % h = plot(NaN,NaN); %// initiallize plot. Get a handle to graphic object
