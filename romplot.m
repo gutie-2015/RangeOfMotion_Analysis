@@ -1,12 +1,15 @@
 % Luke Buschmann
 % Virtual Rehabilitation User Study Range of Motion Measurements
 readalldata = 1; % {0,1} set this to 1 to bypass rowstart and rowend for csvread
-side = 1; % {0,1} 0 for left, 1 for right
-user = 1; % {1,2,3,4,5} user number (1 through 5)
-session = 1; % {0,1} 0 for initial/start session, 1 for end session
-romnum = 3; % {1,2,3,4} range of motion measurement # (1 through 4)
-showplot = 1; % {0,1}  0 disables plot and just shows statistics
 pausetime = 0.02; % pause time for each plot iteration. Decrease to speedup
+readalldata = 0; pausetime = 0.02;
+%readalldata = 1; pausetime = 0.01;
+side = 1; % {0,1} 0 for left, 1 for right
+user = 4; % {1,2,3,4,5} user number (1 through 5)
+session = 1; % {0,1} 0 for initial/start session, 1 for end session
+romnum = 4; % {1,2,3,4} range of motion measurement # (1 through 4)
+showplot = 1; % {0,1}  0 disables plot and just shows statistics
+
 
 test = (romnum-1)*8+1 + side*4 + session*2;
 rowstart = csvinfo(user , (romnum-1)*8+1 + side*4 + session*2);
@@ -16,16 +19,18 @@ if (session == 0)
 else
     filename = strcat('User',num2str(user),'-ROM','end','.csv')
 end
+   
 
 if (readalldata == 1)
     data = csvread(filename,1,1);
     rowstart = 0;
     rowend = 0;
     % check data for ROM label. output the row.
-    Ipos = find(data(:,31)==romnum)
 else
     data = csvread(filename,rowstart,1, [ rowstart,1, rowend, 33]);
 end
+
+ labelrow = find(data(:,31)==romnum)+rowstart
 %data(:,31)
 
 % Read joint data from csv
@@ -45,7 +50,11 @@ if side == 1 %strcmp('right',side)
     xElbow = data(:,22);
     yElbow = data(:,23);  % right elbow
     zElbow = data(:,24);
-else
+    
+    xWrist = data(:,25);
+    yWrist = data(:,26); % right wrist
+    zWrist = data(:,27);
+    else
     xShoulder = data(:,7);
     yShoulder = data(:,8);  % left shoulder
     zShoulder = data(:,9);
@@ -53,6 +62,10 @@ else
     xElbow = data(:,10);
     yElbow = data(:,11);  % left elbow
     zElbow = data(:,12);
+    
+    xWrist = data(:,13);
+    yWrist = data(:,14); % left wrist
+    zWrist = data(:,15);
 end
 
 
@@ -178,7 +191,44 @@ for k = 1:numel(zNeck)  %(rowend - rowstart)
             end
             
         case 4
+            angle = atan2(zWrist(k) - zElbow(k), xWrist(k) - xElbow(k)); %atan2(y2-y1,x2-x1)
+            angle = radtodeg(angle);
+            if (angle < maxangle && side == 1)
+                maxangle = angle;
+            else 
+                if (angle > maxangle && side == 0)
+                    maxangle=angle;
+                end
+            end
             
+            if (showplot == 1)
+                clf;hold on;
+                plot([xHead(k) xNeck(k)], [zHead(k) zNeck(k)])
+                plot([xNeck(k) xShoulder(k)], [ zNeck(k) zShoulder(k)])
+                plot([xShoulder(k) xElbow(k)], [ zShoulder(k) zElbow(k)])
+                plot([xElbow(k) xWrist(k)], [zElbow(k) zWrist(k)])
+                plot(xWrist(k),zWrist(k),'-')
+                plot(xNeck(k),zNeck(k),'b+')
+                plot(xShoulder(k),zShoulder(k),'go')
+                plot(xElbow(k),zElbow(k),'r*')
+                str1 =  strcat('\leftarrow angle= ', num2str(angle));
+                %  text(zNeck(k)+100, yNeck(k)+60,num2str(k));
+                text(xElbow(k)+30, zElbow(k)+30, str1);
+                title(strcat('row= ',num2str(k+rowstart)));
+                if side == 1 %strcmp('right',side)
+                    text(xShoulder(k), zShoulder(k), 'RightShoulder');
+                    text(xElbow(k), zElbow(k), 'RightElbow');
+                    text(xWrist(k), zWrist(k), 'RightWrist');
+                else
+                    text(xShoulder(k), zShoulder(k), 'LeftShoulder');
+                    text(xElbow(k), zElbow(k), 'LeftElbow');
+                    text(xWrist(k), zWrist(k), 'LeftWrist');
+                end
+                text(xHead(k), zHead(k), 'Head');
+                text(xNeck(k), zNeck(k), 'Neck');
+                pause(pausetime);
+                
+            end
             
         otherwise
             error('ROM number invalid. Use 1 through 4');
