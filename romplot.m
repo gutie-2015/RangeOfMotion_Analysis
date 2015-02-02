@@ -1,15 +1,29 @@
 % Luke Buschmann
 % Virtual Rehabilitation User Study Range of Motion Measurements
-readalldata = 1; % {0,1} set this to 1 to bypass rowstart and rowend for csvread
-pausetime = 0.02; % pause time for each plot iteration. Decrease to speedup
-readalldata = 0; pausetime = 0.02;
+readalldata = 0; % {0,1} set this to 1 to bypass rowstart and rowend for csvread
+startparse = 1;  %{1 to maxrows} row to start at with readalldata=1
+pausetime = 0.1; % pause time for each plot iteration. Decrease to speedup
+%readalldata = 0; pausetime = 0.02;
 %readalldata = 1; pausetime = 0.01;
-side = 1; % {0,1} 0 for left, 1 for right
 user = 4; % {1,2,3,4,5} user number (1 through 5)
-session = 1; % {0,1} 0 for initial/start session, 1 for end session
-romnum = 4; % {1,2,3,4} range of motion measurement # (1 through 4)
+romnum = 3; % {1,2,3,4} range of motion measurement # (1 through 4)
+side = 0; % {0,1} 0 for left, 1 for right
+session = 0; % {0,1} 0 for initial/start session, 1 for end session
 showplot = 1; % {0,1}  0 disables plot and just shows statistics
 
+maxangle = 0;  % record maximum range of motion angle
+% Set maxangle = 90 for romnum = 4 angle calculation
+% Also set maxangle = -90 if the user has severely limited mobility in
+% ROM#1 (User3)
+
+
+assert(readalldata == 0 || readalldata == 1, 'Invalid argument: readalldata {0,1}');
+assert(startparse >= 1, 'Invalid argument: startparse must be >= 1');
+assert(user == 1 || user == 2 || user == 3 || user == 4 || user == 5, 'Invalid argument: user {1,2,3,4,5}');
+assert(romnum == 1 || romnum == 2 || romnum == 3 || romnum == 4, 'Invalid argument: romnum {1,2,3,4}');
+assert(session == 0 || session == 1, 'Invalid argument: session {0,1}');
+assert(side == 0 || side == 1, 'Invalid argument: side {0,1}');
+assert(showplot == 0 || showplot == 1, 'Invalid argument: showplot {0,1}');
 
 test = (romnum-1)*8+1 + side*4 + session*2;
 rowstart = csvinfo(user , (romnum-1)*8+1 + side*4 + session*2);
@@ -19,18 +33,20 @@ if (session == 0)
 else
     filename = strcat('User',num2str(user),'-ROM','end','.csv')
 end
-   
 
-if (readalldata == 1)
-    data = csvread(filename,1,1);
-    rowstart = 0;
+
+if (readalldata == 1 || rowend == -1)
+    if (readalldata == 1)
+        rowstart = startparse;
+    end
     rowend = 0;
+    data = csvread(filename,rowstart,1);
     % check data for ROM label. output the row.
 else
     data = csvread(filename,rowstart,1, [ rowstart,1, rowend, 33]);
 end
 
- labelrow = find(data(:,31)==romnum)+rowstart
+labelrow = find(data(:,31)==romnum)+rowstart
 %data(:,31)
 
 % Read joint data from csv
@@ -46,7 +62,7 @@ if side == 1 %strcmp('right',side)
     xShoulder = data(:,19);
     yShoulder = data(:,20);  % right shoulder
     zShoulder = data(:, 21);
-  
+    
     xElbow = data(:,22);
     yElbow = data(:,23);  % right elbow
     zElbow = data(:,24);
@@ -54,7 +70,7 @@ if side == 1 %strcmp('right',side)
     xWrist = data(:,25);
     yWrist = data(:,26); % right wrist
     zWrist = data(:,27);
-    else
+else
     xShoulder = data(:,7);
     yShoulder = data(:,8);  % left shoulder
     zShoulder = data(:,9);
@@ -70,31 +86,30 @@ end
 
 
 %// Plot point by point
+
 close all
 figure,hold on
+if (readalldata == 1)
+    %subplot (2,2,1)
+end
 
-maxangle = 0;  % record maximum range of motion angle
+
 %minangle = 180;
 for k = 1:numel(zNeck)  %(rowend - rowstart)
+    
     switch romnum
         case 1
             angle = atan2(yElbow(k) - yShoulder(k), zElbow(k) - zShoulder(k)); %atan2(y2-y1,x2-x1)
             angle = radtodeg(angle);
             if (angle > maxangle)
-                maxangle = angle;
+                maxangle = angle
+                
             end
-            %{
-    if (angle > maxangle && yElbow(k) > yShoulder(k))
-        maxangle = angle;
-    else
-        if (angle < minangle && yElbow(k) < yShoulder(k))
-            minangle = angle;
-        end
-    end
-            %}
             
             if (showplot == 1)
-                clf;hold on;
+                xlabel('z'); ylabel('y');
+                %           subplot (2,2,1)
+                %   clf;hold on;
                 plot([zHead(k) zNeck(k)], [yHead(k) yNeck(k)])
                 plot([zNeck(k) zShoulder(k)], [ yNeck(k) yShoulder(k)])
                 plot([zShoulder(k) zElbow(k)], [ yShoulder(k) yElbow(k)])
@@ -104,7 +119,7 @@ for k = 1:numel(zNeck)  %(rowend - rowstart)
                 str1 =  strcat('\leftarrow    ', num2str(angle));
                 %  text(zNeck(k)+100, yNeck(k)+60,num2str(k));
                 text(zShoulder(k)+30, yShoulder(k)+30, str1);
-                title(strcat('row= ',num2str(k+rowstart)));
+                title(strcat('romnum=',num2str(romnum),' row= ',num2str(k+rowstart)));
                 if side == 1 %strcmp('right',side)
                     text(zShoulder(k), yShoulder(k), 'RightShoulder');
                     text(zElbow(k), yElbow(k), 'RightElbow');
@@ -114,7 +129,7 @@ for k = 1:numel(zNeck)  %(rowend - rowstart)
                 end
                 text(zHead(k), yHead(k), 'Head');
                 text(zNeck(k), yNeck(k), 'Neck');
-                pause(pausetime);
+                
                 
             end
             
@@ -122,15 +137,17 @@ for k = 1:numel(zNeck)  %(rowend - rowstart)
             angle = atan2(yElbow(k) - yShoulder(k), xElbow(k) - xShoulder(k)); %atan2(y2-y1,x2-x1)
             angle = radtodeg(angle);
             if (angle > maxangle && side ==1)
-                maxangle = angle;
-            else 
+                maxangle = angle
+            else
                 if (angle < maxangle && side == 0)
-                    maxangle=angle;
+                    maxangle=angle
                 end
             end
             
             if (showplot == 1)
-                clf;hold on;
+                %     subplot (2,2,2)
+                %  clf;hold on;
+                xlabel('x'); ylabel('y');
                 plot([xHead(k) xNeck(k)], [yHead(k) yNeck(k)])
                 plot([xNeck(k) xShoulder(k)], [ yNeck(k) yShoulder(k)])
                 plot([xShoulder(k) xElbow(k)], [ yShoulder(k) yElbow(k)])
@@ -140,7 +157,7 @@ for k = 1:numel(zNeck)  %(rowend - rowstart)
                 str1 =  strcat('\leftarrow    ', num2str(angle));
                 %  text(zNeck(k)+100, yNeck(k)+60,num2str(k));
                 text(xShoulder(k)+30, yShoulder(k)+30, str1);
-                title(strcat('row= ',num2str(k+rowstart)));
+                title(strcat('romnum=',num2str(romnum),' row= ',num2str(k+rowstart)));
                 if side == 1 %strcmp('right',side)
                     text(xShoulder(k), yShoulder(k), 'RightShoulder');
                     text(xElbow(k), yElbow(k), 'RightElbow');
@@ -150,7 +167,7 @@ for k = 1:numel(zNeck)  %(rowend - rowstart)
                 end
                 text(xHead(k), yHead(k), 'Head');
                 text(xNeck(k), yNeck(k), 'Neck');
-                pause(pausetime);
+                %  pause(pausetime);
                 
             end
             
@@ -158,15 +175,17 @@ for k = 1:numel(zNeck)  %(rowend - rowstart)
             angle = atan2(zElbow(k) - zShoulder(k), xElbow(k) - xShoulder(k)); %atan2(y2-y1,x2-x1)
             angle = radtodeg(angle);
             if (angle < maxangle && side == 1)
-                maxangle = angle;
-            else 
+                maxangle = angle
+            else
                 if (angle > maxangle && side == 0)
-                    maxangle=angle;
+                    maxangle = angle
                 end
             end
             
             if (showplot == 1)
-                clf;hold on;
+                %      subplot (2,2,3);
+                %     clf;hold on;
+                xlabel('x'); ylabel('z');
                 plot([xHead(k) xNeck(k)], [zHead(k) zNeck(k)])
                 plot([xNeck(k) xShoulder(k)], [ zNeck(k) zShoulder(k)])
                 plot([xShoulder(k) xElbow(k)], [ zShoulder(k) zElbow(k)])
@@ -176,7 +195,7 @@ for k = 1:numel(zNeck)  %(rowend - rowstart)
                 str1 =  strcat('\leftarrow angle= ', num2str(angle));
                 %  text(zNeck(k)+100, yNeck(k)+60,num2str(k));
                 text(xShoulder(k)+30, zShoulder(k)+30, str1);
-                title(strcat('row= ',num2str(k+rowstart)));
+                title(strcat('romnum=',num2str(romnum),' row= ',num2str(k+rowstart)));
                 if side == 1 %strcmp('right',side)
                     text(xShoulder(k), zShoulder(k), 'RightShoulder');
                     text(xElbow(k), zElbow(k), 'RightElbow');
@@ -186,23 +205,26 @@ for k = 1:numel(zNeck)  %(rowend - rowstart)
                 end
                 text(xHead(k), zHead(k), 'Head');
                 text(xNeck(k), zNeck(k), 'Neck');
-                pause(pausetime);
+                %    pause(pausetime);
                 
             end
             
         case 4
             angle = atan2(zWrist(k) - zElbow(k), xWrist(k) - xElbow(k)); %atan2(y2-y1,x2-x1)
             angle = radtodeg(angle);
+            % for ROM#4 && side=1, i set maxangle to 90
             if (angle < maxangle && side == 1)
-                maxangle = angle;
-            else 
-                if (angle > maxangle && side == 0)
-                    maxangle=angle;
+                maxangle = angle
+            else
+                if (angle > maxangle && side == 0 && zWrist(k) >= zElbow(k))
+                    maxangle=angle
                 end
             end
             
             if (showplot == 1)
-                clf;hold on;
+                % subplot (2,2,4);
+                %      clf;hold on;
+                xlabel('x'); ylabel('z');
                 plot([xHead(k) xNeck(k)], [zHead(k) zNeck(k)])
                 plot([xNeck(k) xShoulder(k)], [ zNeck(k) zShoulder(k)])
                 plot([xShoulder(k) xElbow(k)], [ zShoulder(k) zElbow(k)])
@@ -213,8 +235,8 @@ for k = 1:numel(zNeck)  %(rowend - rowstart)
                 plot(xElbow(k),zElbow(k),'r*')
                 str1 =  strcat('\leftarrow angle= ', num2str(angle));
                 %  text(zNeck(k)+100, yNeck(k)+60,num2str(k));
-                text(xElbow(k)+30, zElbow(k)+30, str1);
-                title(strcat('row= ',num2str(k+rowstart)));
+                text(xElbow(k)-50, zElbow(k)+30, str1);
+                title(strcat('romnum=',num2str(romnum),' row= ',num2str(k+rowstart)));
                 if side == 1 %strcmp('right',side)
                     text(xShoulder(k), zShoulder(k), 'RightShoulder');
                     text(xElbow(k), zElbow(k), 'RightElbow');
@@ -226,122 +248,23 @@ for k = 1:numel(zNeck)  %(rowend - rowstart)
                 end
                 text(xHead(k), zHead(k), 'Head');
                 text(xNeck(k), zNeck(k), 'Neck');
-                pause(pausetime);
+                %     pause(pausetime);
                 
             end
             
         otherwise
             error('ROM number invalid. Use 1 through 4');
     end
+    
+    pause(pausetime);
+    
+    clf;hold on;
 end
+close all
 %if (maxangle == 0) minangle
 %else maxangle
 %end
 maxangle
-
-
-
-
-%a=1;
-%{
-switch user
-    case 1
-        if strcmp('start',session)
-            if (strcmp('right',side))
-                rowstart = 250;
-                rowend = 320;
-            else % left side
-                error('User 1 did not use left side');
-            end
-        else % end sessions
-            if (strcmp('right',side))
-                rowstart = 250;
-                rowend = 330;
-            else % left side
-                error('User 1 did not use left side');
-            end
-        end
-    case 2
-        if strcmp('start',session)
-            if (strcmp('right',side))
-                rowstart = 1;
-                rowend = 500;
-            else % left side
-                rowstart = 1;
-                rowend = 500;
-            end
-        else % end sessions
-            if (strcmp('right',side))
-                rowstart = 100;
-                rowend = 400;
-            else % left side
-                rowstart = 1;
-                rowend = 500;
-            end
-        end
-    case 3
-        if strcmp('start',session)
-            if (strcmp('right',side))
-                rowstart = 1;
-                rowend = 500;
-            else % left side
-                rowstart = 1;
-                rowend = 500;
-            end
-        else % end sessions
-            if (strcmp('right',side))
-                rowstart = 1;
-                rowend = 500;
-            else % left side
-                rowstart = 1;
-                rowend = 500;
-            end
-        end
-    case 4
-        if strcmp('start',session)
-            if (strcmp('right',side))
-                rowstart = 380;
-                rowend = 410;
-            else % left side
-                rowstart = 260;
-                rowend = 370;
-            end
-        else % end sessions
-            if (strcmp('right',side))
-                rowstart = 80;
-                rowend = 150;
-            else % left side
-                rowstart = 120;
-                rowend = 200;
-            end
-        end
-    case 5
-        if strcmp('start',session)
-            if (strcmp('right',side))
-                rowstart = 1;
-                rowend = 500;
-            else % left side
-                rowstart = 1;
-                rowend = 500;
-            end
-        else % end sessions
-            if (strcmp('right',side))
-                rowstart = 1;
-                rowend = 500;
-            else % left side
-                rowstart = 1;
-                rowend = 500;
-            end
-        end
-        
-end
-%}
-
-
-%data = csvread('User4-ROMstart.csv',380,2, [ 380,2, 410, 32]); % 1 right
-%data = csvread('User4-ROMstart.csv',260,2, [ 260,2, 370, 32]); % 1 left
-%data = csvread('User4-ROMend.csv',80,1, [80,1, 150, 32]);  % 1 right
-%data = csvread('User4-ROMend.csv',120,1, [120,1, 200, 32]);  % 1 left
 
 
 
